@@ -1,0 +1,12 @@
+{{ define "content" }}
+    <h2> SLIM YOUR LINKS AND MEASURE POPULARITY </h2>
+
+    <form action="/set" method="POST">
+      <div class="input-group">
+         <input class="form-control"  type="url" name="url" placeholder="Please enter a URL to shorten" required>
+         <span class="input-group-btn">
+              <button class="btn btn-default" type="submit">Shorten!</button>
+         </span>
+      </div>
+    </form>
+{{ end }}

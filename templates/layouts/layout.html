@@ -1,0 +1,35 @@
+{{ define "base" }}
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>Slim</title>
+
+      <!-- Bootstrap -->
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+
+      <style type="text/css">
+        body {padding-bottom: 70px;}
+        .content {margin:10px;}
+      </style>
+    </head>
+
+    <body>
+      <nav class="navbar navbar-default" role="navigation">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="/">Slim - shorten your urls</a>
+        </div>
+      </nav>
+
+      <div class="container">
+        <div class="row">
+          <div class="col-md-12">
+            {{ template "content" . }}
+          </div>
+        </div>
+      </div>
+
+    </body>
+  </html>
+{{end}}
