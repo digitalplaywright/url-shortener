@@ -14,8 +14,17 @@ import (
 
 //ShortenerApp Represents the app itself
 type ShortenerApp struct {
-	templates      map[string]*template.Template
-	redisPool      *redis.Pool
+	templates map[string]*template.Template
+
+	//The resulting redis schema will be, where `shortURL` is the shortened url
+	//for the current entry:
+	//    - url:shortURL -> { "shortURL" -> shortURL,
+	//                        "longURL"  -> "url to redirect to"   }
+	//    - demoClick:shortURL   -> number of clicks for url in total
+	//    - demoCountry:shortURL -> hash of number of clicks from country
+	//    - demoRegion:shortURL  -> hash of number of clicks from region
+	redisPool *redis.Pool
+
 	ipAddressQueue chan IPElement
 }
 
