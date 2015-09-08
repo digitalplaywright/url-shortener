@@ -19,6 +19,38 @@ type ShortenerApp struct {
 	ipAddressQueue chan IPElement
 }
 
+//NewShortenerApp creates a new shortener app instance
+func NewShortenerApp() *ShortenerApp {
+	app := ShortenerApp{}
+
+	return &app
+}
+
+//start initializes and starts serving the app
+func (s *ShortenerApp) start() {
+	s.initDB()
+	s.initIPElementChannel()
+	s.initTemplates()
+
+	defer s.redisPool.Close()
+
+	server := &Server{
+		db:             s.redisPool,
+		ipAddressQueue: s.ipAddressQueue,
+		templates:      s.templates,
+	}
+
+	router := mux.NewRouter()
+	router.HandleFunc("/", server.RootHandler).Methods("GET")
+	router.HandleFunc("/set", server.SetHandler).Methods("GET")
+	router.HandleFunc("/set", server.SetPostHandler).Methods("POST")
+	router.HandleFunc("/statistics/{id:[0-9]+}", server.StatisticsHandler).Methods("GET")
+	router.HandleFunc("/{id:[0-9]+}", server.FetchURL).Methods("GET")
+
+	log.Fatal(http.ListenAndServe(":9999", router))
+
+}
+
 //initTemplates parses all templates using the current layout
 func (s *ShortenerApp) initTemplates() {
 	s.templates = map[string]*template.Template{}
@@ -55,7 +87,7 @@ func (s *ShortenerApp) initDB() {
 
 }
 
-//create a queue to fetch demographic information from
+//initIPElementChannel creates a queue to fetch demographic information from
 //the IP address in the backogrund
 func (s *ShortenerApp) initIPElementChannel() {
 
@@ -68,37 +100,5 @@ func (s *ShortenerApp) initIPElementChannel() {
 	}
 
 	go q.start()
-
-}
-
-func (s *ShortenerApp) start() {
-	s.initDB()
-	s.initIPElementChannel()
-	s.initTemplates()
-
-	defer s.redisPool.Close()
-
-	server := &Server{
-		db:             s.redisPool,
-		ipAddressQueue: s.ipAddressQueue,
-		templates:      s.templates,
-	}
-
-	router := mux.NewRouter()
-	router.HandleFunc("/", server.RootHandler).Methods("GET")
-	router.HandleFunc("/set", server.SetHandler).Methods("GET")
-	router.HandleFunc("/set", server.SetPostHandler).Methods("POST")
-	router.HandleFunc("/statistics/{id:[0-9]+}", server.StatisticsHandler).Methods("GET")
-	router.HandleFunc("/{id:[0-9]+}", server.FetchURL).Methods("GET")
-
-	log.Fatal(http.ListenAndServe(":9999", router))
-
-}
-
-//NewShortenerApp creates a new shortener app instance
-func NewShortenerApp() *ShortenerApp {
-	app := ShortenerApp{}
-
-	return &app
 
 }
