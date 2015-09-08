@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -71,35 +72,32 @@ func (s *Server) PostItem(w http.ResponseWriter, r *http.Request) {
 
 	//Get unique id
 	c.Do("INCR", "next_url_id")
-	key, urlIDErr := c.Do("GET", "next_url_id")
 
+	key, urlIDErr := c.Do("GET", "next_url_id")
 	if urlIDErr != nil {
-		//I believe this can only happen if the redis db is down
-		s.RenderErrorPage(w, "Could not shorten your url. Please try again.")
+		log.Fatal("Failed to fetch next id from redis")
+	}
+
+	urlKey, urlErr := strconv.ParseInt(string(key.([]byte)), 10, 0)
+
+	if urlErr != nil {
+		//TODO: if client-side html5 validation does not work and the
+		//form is submitted with an invalid URL we need to handle that
+		//properly
+		message := "Could not shorten your url. Please try again."
+		s.RenderErrorPage(w, message)
 
 	} else {
+		//store shortened url and render success page
+		storeKey := strconv.FormatInt(urlKey, 10)
 
-		urlKey, urlErr := strconv.ParseInt(string(key.([]byte)), 10, 0)
+		c.Do("HSET", "url:"+storeKey, "shortUrl", storeKey)
+		c.Do("HSET", "url:"+storeKey, "longUrl", url)
+		c.Do("SET", "demoClick:"+storeKey, 0)
 
-		if urlErr != nil {
-			//TODO: if client-side html5 validation does not work and the
-			//form is submitted with an invalid URL we need to handle that
-			//properly
-			message := "Could not shorten your url. Please try again."
-			s.RenderErrorPage(w, message)
+		redirectURL := "/statistics/" + storeKey
+		http.Redirect(w, r, redirectURL, 303)
 
-		} else {
-			//store shortened url and render success page
-			storeKey := strconv.FormatInt(urlKey, 10)
-
-			c.Do("HSET", "url:"+storeKey, "shortUrl", storeKey)
-			c.Do("HSET", "url:"+storeKey, "longUrl", url)
-			c.Do("SET", "demoClick:"+storeKey, 0)
-
-			redirectURL := "/statistics/" + storeKey
-			http.Redirect(w, r, redirectURL, 303)
-
-		}
 	}
 
 }
@@ -119,8 +117,8 @@ func (s *Server) GetItem(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		message := fmt.Sprintf("Could not GET %s", key)
 		s.RenderErrorPage(w, message)
-	} else {
 
+	} else {
 		s.ipAddressQueue <- IPElement{r.RemoteAddr, key, time.Now()}
 
 		http.Redirect(w, r, url, 303)
@@ -166,23 +164,15 @@ func (s *Server) GetItemStatistics(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, "db error - failed to locate demoRegion:"+key)
 		}
 
-		if err != nil {
-			message := "Problems accessing url " + key
-			s.RenderErrorPage(w, message)
-
-		} else {
-
-			data := map[string]interface{}{
-				"longURL":     longURL,
-				"shortURL":    shortURL,
-				"demoClick":   demoClick,
-				"demoRegion":  demoRegion,
-				"demoCountry": demoCountry,
-			}
-
-			s.renderTemplate(w, "statistics.html", data)
-
+		data := map[string]interface{}{
+			"longURL":     longURL,
+			"shortURL":    shortURL,
+			"demoClick":   demoClick,
+			"demoRegion":  demoRegion,
+			"demoCountry": demoCountry,
 		}
+
+		s.renderTemplate(w, "statistics.html", data)
 
 	}
 }
