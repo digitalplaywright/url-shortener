@@ -39,13 +39,6 @@ func (s *Server) renderTemplate(w http.ResponseWriter, name string, data map[str
 	return nil
 }
 
-//RootHandler serves the root route
-func (s *Server) RootHandler(w http.ResponseWriter, r *http.Request) {
-
-	data := map[string]interface{}{}
-	s.renderTemplate(w, "root.html", data)
-}
-
 //RenderErrorPage renders an error page.
 func (s *Server) RenderErrorPage(w http.ResponseWriter, message string) {
 	w.WriteHeader(400)
@@ -54,14 +47,21 @@ func (s *Server) RenderErrorPage(w http.ResponseWriter, message string) {
 	s.renderTemplate(w, "error.html", data)
 }
 
+//RootHandler serves the root route
+func (s *Server) GetRoot(w http.ResponseWriter, r *http.Request) {
+
+	data := map[string]interface{}{}
+	s.renderTemplate(w, "root.html", data)
+}
+
 //SetHandler serves the form to submit a URL for shortening
-func (s *Server) SetHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) NewItem(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{}
 	s.renderTemplate(w, "set.html", data)
 }
 
 //SetPostHandler shortens a URL
-func (s *Server) SetPostHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) PostItem(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	url := r.FormValue("url")
@@ -106,7 +106,7 @@ func (s *Server) SetPostHandler(w http.ResponseWriter, r *http.Request) {
 
 //FetchURL redirects a shortened URL to the location and collects
 //information about the requestor
-func (s *Server) FetchURL(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetItem(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	key := vars["id"]
@@ -129,7 +129,7 @@ func (s *Server) FetchURL(w http.ResponseWriter, r *http.Request) {
 }
 
 //StatisticsHandler represents the statistics about a URL
-func (s *Server) StatisticsHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetItemStatistics(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	key := vars["id"]

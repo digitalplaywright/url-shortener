@@ -41,11 +41,11 @@ func (s *ShortenerApp) start() {
 	}
 
 	router := mux.NewRouter()
-	router.HandleFunc("/", server.RootHandler).Methods("GET")
-	router.HandleFunc("/set", server.SetHandler).Methods("GET")
-	router.HandleFunc("/set", server.SetPostHandler).Methods("POST")
-	router.HandleFunc("/statistics/{id:[0-9]+}", server.StatisticsHandler).Methods("GET")
-	router.HandleFunc("/{id:[0-9]+}", server.FetchURL).Methods("GET")
+	router.HandleFunc("/", server.GetRoot).Methods("GET")
+	router.HandleFunc("/set", server.NewItem).Methods("GET")
+	router.HandleFunc("/set", server.PostItem).Methods("POST")
+	router.HandleFunc("/{id:[0-9]+}", server.GetItem).Methods("GET")
+	router.HandleFunc("/statistics/{id:[0-9]+}", server.GetItemStatistics).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":9999", router))
 
