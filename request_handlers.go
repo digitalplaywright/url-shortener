@@ -81,24 +81,18 @@ func (s *Server) PostItem(w http.ResponseWriter, r *http.Request) {
 	urlKey, urlErr := strconv.ParseInt(string(key.([]byte)), 10, 0)
 
 	if urlErr != nil {
-		//TODO: if client-side html5 validation does not work and the
-		//form is submitted with an invalid URL we need to handle that
-		//properly
-		message := "Could not shorten your url. Please try again."
-		s.RenderErrorPage(w, message)
-
-	} else {
-		//store shortened url and render success page
-		storeKey := strconv.FormatInt(urlKey, 10)
-
-		c.Do("HSET", "url:"+storeKey, "shortUrl", storeKey)
-		c.Do("HSET", "url:"+storeKey, "longUrl", url)
-		c.Do("SET", "demoClick:"+storeKey, 0)
-
-		redirectURL := "/statistics/" + storeKey
-		http.Redirect(w, r, redirectURL, 303)
-
+		log.Fatal("Failed to parse integer from redis key")
 	}
+
+	//store shortened url and render success page
+	storeKey := strconv.FormatInt(urlKey, 10)
+
+	c.Do("HSET", "url:"+storeKey, "shortUrl", storeKey)
+	c.Do("HSET", "url:"+storeKey, "longUrl", url)
+	c.Do("SET", "demoClick:"+storeKey, 0)
+
+	redirectURL := "/statistics/" + storeKey
+	http.Redirect(w, r, redirectURL, 303)
 
 }
 
