@@ -47,20 +47,20 @@ func (s *Server) RenderErrorPage(w http.ResponseWriter, message string) {
 	s.renderTemplate(w, "error.html", data)
 }
 
-//RootHandler serves the root route
+//GetRoot serves the root route
 func (s *Server) GetRoot(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]interface{}{}
 	s.renderTemplate(w, "root.html", data)
 }
 
-//SetHandler serves the form to submit a URL for shortening
+//NewItem serves the form to submit a URL for shortening
 func (s *Server) NewItem(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{}
 	s.renderTemplate(w, "set.html", data)
 }
 
-//SetPostHandler shortens a URL
+//PostItem shortens a URL
 func (s *Server) PostItem(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
@@ -104,7 +104,7 @@ func (s *Server) PostItem(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//FetchURL redirects a shortened URL to the location and collects
+//GetItem redirects a shortened URL to the location and collects
 //information about the requestor
 func (s *Server) GetItem(w http.ResponseWriter, r *http.Request) {
 
@@ -128,7 +128,7 @@ func (s *Server) GetItem(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//StatisticsHandler represents the statistics about a URL
+//GetItemStatistics represents the statistics about a URL
 func (s *Server) GetItemStatistics(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
