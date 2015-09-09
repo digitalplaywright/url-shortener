@@ -35,8 +35,6 @@ func NewServer() *Server {
 		db: &db,
 	}
 
-	server.initTemplates()
-
 	return server
 }
 
@@ -57,6 +55,7 @@ func (s *Server) initTemplates() {
 
 //start initializes and starts serving the app
 func (s *Server) start() {
+	s.initTemplates()
 
 	//defer s.redisPool.Close()
 
