@@ -5,19 +5,66 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"strconv"
-	"time"
+	"path/filepath"
 
-	"github.com/garyburd/redigo/redis"
 	"github.com/gorilla/mux"
 )
 
 //Server holds the variables that are used in the
 //request handlers.
 type Server struct {
-	db             *redis.Pool
-	ipAddressQueue chan IPElement
-	templates      map[string]*template.Template
+	db interface {
+		shortenURL(string) string
+		getLongURL(string, string) (string, error)
+		getStatistics(string) (*map[string]interface{}, error)
+	}
+
+	templates map[string]*template.Template
+}
+
+//NewServer creates a new server instance
+func NewServer() *Server {
+	db := RedisDB{}
+	db.initDB()
+
+	server := &Server{
+		db: &db,
+	}
+
+	server.initTemplates()
+
+	return server
+}
+
+//initTemplates parses all templates using the current layout
+func (s *Server) initTemplates() {
+	s.templates = map[string]*template.Template{}
+
+	tmplGlobs, err := filepath.Glob("templates/includes/*.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Generate our templates map from our layouts/ and includes/ directories
+	for _, tmpl := range tmplGlobs {
+		s.templates[filepath.Base(tmpl)] = template.Must(template.ParseFiles(tmpl, "templates/layouts/layout.html"))
+	}
+}
+
+//start initializes and starts serving the app
+func (s *Server) start() {
+
+	//defer s.redisPool.Close()
+
+	router := mux.NewRouter()
+	router.HandleFunc("/", s.GetRoot).Methods("GET")
+	router.HandleFunc("/set", s.NewItem).Methods("GET")
+	router.HandleFunc("/set", s.PostItem).Methods("POST")
+	router.HandleFunc("/{id:[0-9]+}", s.GetItem).Methods("GET")
+	router.HandleFunc("/statistics/{id:[0-9]+}", s.GetItemStatistics).Methods("GET")
+
+	log.Fatal(http.ListenAndServe(":9999", router))
+
 }
 
 // renderTemplate is a wrapper around template.ExecuteTemplate.
@@ -38,6 +85,7 @@ func (s *Server) renderTemplate(w http.ResponseWriter, name string, data map[str
 	// Set the header and write the buffer to the http.ResponseWriter
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	return nil
+
 }
 
 //RenderErrorPage renders an error page.
@@ -46,13 +94,14 @@ func (s *Server) RenderErrorPage(w http.ResponseWriter, message string) {
 
 	data := map[string]interface{}{}
 	s.renderTemplate(w, "error.html", data)
+
 }
 
 //GetRoot serves the root route
 func (s *Server) GetRoot(w http.ResponseWriter, r *http.Request) {
-
 	data := map[string]interface{}{}
 	s.renderTemplate(w, "root.html", data)
+
 }
 
 //NewItem serves the form to submit a URL for shortening
@@ -67,29 +116,7 @@ func (s *Server) PostItem(w http.ResponseWriter, r *http.Request) {
 
 	url := r.FormValue("url")
 
-	c := s.db.Get()
-	defer c.Close()
-
-	//Get unique id
-	c.Do("INCR", "next_url_id")
-
-	key, urlIDErr := c.Do("GET", "next_url_id")
-	if urlIDErr != nil {
-		log.Fatal("Failed to fetch next id from redis")
-	}
-
-	urlKey, urlErr := strconv.ParseInt(string(key.([]byte)), 10, 0)
-
-	if urlErr != nil {
-		log.Fatal("Failed to parse integer from redis key")
-	}
-
-	//store shortened url and render success page
-	storeKey := strconv.FormatInt(urlKey, 10)
-
-	c.Do("HSET", "url:"+storeKey, "shortUrl", storeKey)
-	c.Do("HSET", "url:"+storeKey, "longUrl", url)
-	c.Do("SET", "demoClick:"+storeKey, 0)
+	storeKey := s.db.shortenURL(url)
 
 	redirectURL := "/statistics/" + storeKey
 	http.Redirect(w, r, redirectURL, 303)
@@ -103,21 +130,18 @@ func (s *Server) GetItem(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["id"]
 
-	c := s.db.Get()
-	defer c.Close()
-
-	url, err := redis.String(c.Do("HGET", "url:"+key, "longUrl"))
+	url, err := s.db.getLongURL(key, r.RemoteAddr)
 
 	if err != nil {
 		message := fmt.Sprintf("Could not GET %s", key)
 		s.RenderErrorPage(w, message)
 
 	} else {
-		s.ipAddressQueue <- IPElement{r.RemoteAddr, key, time.Now()}
 
 		http.Redirect(w, r, url, 303)
 
 	}
+
 }
 
 //GetItemStatistics represents the statistics about a URL
@@ -126,11 +150,7 @@ func (s *Server) GetItemStatistics(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["id"]
 
-	c := s.db.Get()
-	defer c.Close()
-
-	shortURL, err := redis.String(c.Do("HGET", "url:"+key, "shortUrl"))
-	shortURL = "http://localhost:3000/" + shortURL
+	data, err := s.db.getStatistics(key)
 
 	if err != nil {
 		message := fmt.Sprintf("Could not GET %s", key)
@@ -138,35 +158,8 @@ func (s *Server) GetItemStatistics(w http.ResponseWriter, r *http.Request) {
 
 	} else {
 
-		longURL, lErr := redis.String(c.Do("HGET", "url:"+key, "longUrl"))
-		if lErr != nil {
-			fmt.Fprint(w, "db error - failed to locate longUrl:"+key)
-		}
-
-		demoClick, cErr := redis.String(c.Do("GET", "demoClick:"+key))
-		if cErr != nil {
-			fmt.Fprint(w, "db error - failed to locate demoClick:"+key)
-		}
-
-		demoCountry, coErr := redis.StringMap(c.Do("HGETALL", "demoCountry:"+key))
-		if coErr != nil {
-			fmt.Fprint(w, "db error - failed to locate demoCountry:"+key)
-		}
-
-		demoRegion, drErr := redis.StringMap(c.Do("HGETALL", "demoRegion:"+key))
-		if drErr != nil {
-			fmt.Fprint(w, "db error - failed to locate demoRegion:"+key)
-		}
-
-		data := map[string]interface{}{
-			"longURL":     longURL,
-			"shortURL":    shortURL,
-			"demoClick":   demoClick,
-			"demoRegion":  demoRegion,
-			"demoCountry": demoCountry,
-		}
-
-		s.renderTemplate(w, "statistics.html", data)
+		s.renderTemplate(w, "statistics.html", *data)
 
 	}
+
 }

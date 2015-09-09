@@ -2,6 +2,6 @@ package main
 
 func main() {
 
-	NewShortenerApp().start()
+	NewServer().start()
 
 }
