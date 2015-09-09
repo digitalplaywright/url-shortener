@@ -13,12 +13,16 @@ import (
 //Server holds the variables that are used in the
 //request handlers.
 type Server struct {
+
+	//A general abstaction of a database
+	//makes it easier to test in isolation
 	db interface {
 		shortenURL(string) (string, error)
 		getLongURL(string, string) (string, error)
 		getStatistics(string) (*map[string]interface{}, error)
 	}
 
+	//Parsed vesion of the templates
 	templates map[string]*template.Template
 }
 
@@ -122,7 +126,6 @@ func (s *Server) PostItem(w http.ResponseWriter, r *http.Request) {
 		s.RenderErrorPage(w, err.Error())
 
 	} else {
-
 		redirectURL := "/statistics/" + storeKey
 		http.Redirect(w, r, redirectURL, 303)
 
@@ -143,7 +146,6 @@ func (s *Server) GetItem(w http.ResponseWriter, r *http.Request) {
 		s.RenderErrorPage(w, err.Error())
 
 	} else {
-
 		http.Redirect(w, r, url, 303)
 
 	}
@@ -162,7 +164,6 @@ func (s *Server) GetItemStatistics(w http.ResponseWriter, r *http.Request) {
 		s.RenderErrorPage(w, err.Error())
 
 	} else {
-
 		s.renderTemplate(w, "statistics.html", *data)
 
 	}
