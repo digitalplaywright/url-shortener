@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -33,9 +32,6 @@ type RedisDB struct {
 //initDB initializes the redis pool
 func (r *RedisDB) initDB() {
 
-	redisAddress := flag.String("redis-address", ":6379", "Address to the Redis server")
-	maxConnections := flag.Int("max-connections", 10, "Max connections to Redis")
-
 	//DB setup
 	flag.Parse()
 
@@ -54,6 +50,7 @@ func (r *RedisDB) initDB() {
 	//creates a queue to fetch demographic information from
 	//the IP address in the backogrund
 	r.ipAddressQueue = make(chan IPElement, 2)
+
 	go r.backgroundJob()
 }
 
@@ -64,12 +61,6 @@ func (r *RedisDB) backgroundJob() {
 
 	for {
 		ipRecord := <-r.ipAddressQueue
-
-		//FIXME: A hack for testing purposes so that we can have a
-		//valid IP Address during development on localhost.
-		if r.isLocalHost(ipRecord.IP) == true {
-			ipRecord.IP = "74.125.239.40"
-		}
 
 		record, err := r.geoAPI.lookup(ipRecord.IP)
 		if err != nil {
@@ -85,11 +76,6 @@ func (r *RedisDB) backgroundJob() {
 		}
 		time.Sleep(time.Second * 1)
 	}
-}
-
-//isLocalHost determines if we are currently running in development
-func (r *RedisDB) isLocalHost(ipAddress string) bool {
-	return strings.Contains(ipAddress, "::1") || strings.Contains(ipAddress, "127.0.0.1")
 }
 
 //shortenURL takes a site url and returns a shortened version
