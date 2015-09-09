@@ -24,7 +24,7 @@ type Server struct {
 
 //NewServer creates a new server instance
 func NewServer() *Server {
-	db := RedisDB{}
+	db := RedisDB{api: &GeoAPI{}}
 	db.initDB()
 
 	server := &Server{
