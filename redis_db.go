@@ -93,7 +93,7 @@ func (r *RedisDB) isLocalHost(ipAddress string) bool {
 }
 
 //shortenURL takes a site url and returns a shortened version
-func (r *RedisDB) shortenURL(url string) string {
+func (r *RedisDB) shortenURL(url string) (string, error) {
 	c := r.db.Get()
 	defer c.Close()
 
@@ -108,7 +108,7 @@ func (r *RedisDB) shortenURL(url string) string {
 	urlKey, urlErr := strconv.ParseInt(string(key.([]byte)), 10, 0)
 
 	if urlErr != nil {
-		log.Fatal("Failed to parse integer from redis key")
+		return "", urlErr
 	}
 
 	//store shortened url and render success page
@@ -118,7 +118,7 @@ func (r *RedisDB) shortenURL(url string) string {
 	c.Do("HSET", "url:"+storeKey, "longUrl", url)
 	c.Do("SET", "demoClick:"+storeKey, 0)
 
-	return storeKey
+	return storeKey, nil
 }
 
 //getLongURL takes a shortened url and returns the external site URL

@@ -14,7 +14,7 @@ import (
 //request handlers.
 type Server struct {
 	db interface {
-		shortenURL(string) string
+		shortenURL(string) (string, error)
 		getLongURL(string, string) (string, error)
 		getStatistics(string) (*map[string]interface{}, error)
 	}
@@ -116,10 +116,17 @@ func (s *Server) PostItem(w http.ResponseWriter, r *http.Request) {
 
 	url := r.FormValue("url")
 
-	storeKey := s.db.shortenURL(url)
+	storeKey, err := s.db.shortenURL(url)
 
-	redirectURL := "/statistics/" + storeKey
-	http.Redirect(w, r, redirectURL, 303)
+	if err != nil {
+		s.RenderErrorPage(w, err.Error())
+
+	} else {
+
+		redirectURL := "/statistics/" + storeKey
+		http.Redirect(w, r, redirectURL, 303)
+
+	}
 
 }
 
@@ -133,8 +140,7 @@ func (s *Server) GetItem(w http.ResponseWriter, r *http.Request) {
 	url, err := s.db.getLongURL(key, r.RemoteAddr)
 
 	if err != nil {
-		message := fmt.Sprintf("Could not GET %s", key)
-		s.RenderErrorPage(w, message)
+		s.RenderErrorPage(w, err.Error())
 
 	} else {
 
@@ -153,8 +159,7 @@ func (s *Server) GetItemStatistics(w http.ResponseWriter, r *http.Request) {
 	data, err := s.db.getStatistics(key)
 
 	if err != nil {
-		message := fmt.Sprintf("Could not GET %s", key)
-		s.RenderErrorPage(w, message)
+		s.RenderErrorPage(w, err.Error())
 
 	} else {
 
